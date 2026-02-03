@@ -1,7 +1,7 @@
 use corporate_finance::risk_metrics::*;
 
 fn main() {
-    let market = vec![0.10, 0.12, -0.02, 0.15, -0.05];
+    let market = vec![0.10];
     let rf = 0.065;
 
     let portfolio = vec![
@@ -9,15 +9,26 @@ fn main() {
         ("Stable Utility", vec![0.07, 0.08, 0.06, 0.09, 0.07]),
     ];
 
+    // Covariance(series, market)
+    let _co_variance = portfolio[0]
+        .1
+        .iter()
+        .zip(market.iter())
+        .map(|(&s, &m)| {
+            println!("{s}, {m}");
+            s + m
+        })
+        .sum::<f64>();
+
     for (name, series) in portfolio {
         let metrics = InvestmentMetrics {
-        name: name.to_string(),
-        sharpe: calculate_sharpe(&series, rf),
-        sortino: calculate_sortino(&series, rf),
-        treynor: calculate_treynor(&series, &market, rf),
-        info_ratio: calculate_information_ratio(&series, &market),
-        beta: Beta::new(&series, &market).into(),
-    };
+            name: name.to_string(),
+            sharpe: calculate_sharpe(&series, rf),
+            sortino: calculate_sortino(&series, rf),
+            treynor: calculate_treynor(&series, &market, rf),
+            info_ratio: calculate_information_ratio(&series, &market),
+            beta: Beta::new(&series, &market).into(),
+        };
         metrics.print_full_analysis();
     }
 }
@@ -105,23 +116,35 @@ impl InvestmentMetrics {
 
     pub fn get_recommendation(&self) -> (&str, &str) {
         if self.sortino > 3.0 && self.beta < 0.5 {
-            ("CORE HOLDING", "Low risk, extreme downside protection. Suitable for 20-40% of portfolio.")
+            (
+                "CORE HOLDING",
+                "Low risk, extreme downside protection. Suitable for 20-40% of portfolio.",
+            )
         } else if self.info_ratio > 0.5 && self.beta > 1.5 {
-            ("TACTICAL GROWTH", "High octane. Manager shows skill, but market sensitivity is high. Limit to 5-10%.")
+            (
+                "TACTICAL GROWTH",
+                "High octane. Manager shows skill, but market sensitivity is high. Limit to 5-10%.",
+            )
         } else if self.sharpe < 1.0 && self.info_ratio < 0.2 {
-            ("AVOID / REDUCE", "Poor risk-adjusted returns and little evidence of manager skill.")
+            (
+                "AVOID / REDUCE",
+                "Poor risk-adjusted returns and little evidence of manager skill.",
+            )
         } else {
-            ("SPECULATIVE", "Inconsistent metrics. Use only for small, non-core positions.")
+            (
+                "SPECULATIVE",
+                "Inconsistent metrics. Use only for small, non-core positions.",
+            )
         }
     }
 
     pub fn print_full_analysis(&self) {
         let (rec_title, rec_desc) = self.get_recommendation();
-        
+
         println!("{}", BOLD_DASH_MARKER.repeat(50));
         println!("ANALYSIS FOR: {}", self.name.to_uppercase());
         println!("{}", BOLD_DASH_MARKER.repeat(50));
-        
+
         self.print_insight(); // Your previous insight logic
 
         println!("PROPOSED ACTION: **{}**", rec_title);

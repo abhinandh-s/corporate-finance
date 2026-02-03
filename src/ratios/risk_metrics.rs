@@ -10,8 +10,30 @@ pub struct Beta(f64);
 
 impl Beta {
     pub fn new(series: &[f64], market: &[f64]) -> Self {
+        // If they don't match, the math is technically invalid for a specific timeframe
+        assert_eq!(
+            series.len(),
+            market.len(),
+            "series[{}] and market[{}] must have the same mumber of data points",
+            series.len(),
+            market.len()
+        );
+
+        let n = series.len() as f64;
+        if n == 0.0 {
+            return Self(0.0);
+        }
+
         let m_mean = mean(market);
         let s_mean = mean(series);
+
+        // Variance(market)
+        let m_variance = variance(market, Some(m_mean));
+
+        // Safety check for division by zero
+        if m_variance == 0.0 {
+            return Self(0.0);
+        }
 
         // Covariance(series, market)
         let co_variance = series
@@ -21,9 +43,6 @@ impl Beta {
             .sum::<f64>()
             / series.len() as f64;
 
-        // Variance(market)
-        let m_variance = variance(market, Some(m_mean));
-
         Self(co_variance / m_variance)
     }
 
@@ -31,7 +50,9 @@ impl Beta {
 
     /// The fund moves exactly with the market.
     pub const fn is_one(self) -> bool {
-        self.0 == 1.00
+        // self.0 == 1.00 - this is risky due to precision errors
+        // check if the difference is within a tiny margin (epsilon)
+        (self.0 - 1.0).abs() < f64::EPSILON
     }
 
     /// The fund is "defensive" and moves less than the market
@@ -60,7 +81,6 @@ impl Remarks {
     pub const ACCEPTABLE: &str = "Acceptable";
     pub const BAD: &str = "Bad";
 }
-
 
 // # Sharpe Ratio
 //
@@ -96,18 +116,28 @@ impl Remarks {
 //     Greater than 3: Excellent
 //
 // ref: [Sharpe Ratio](https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/sharpe-ratio-definition-formula/)
-// 
+//
 //
 /// ## Sharpe Ratio Formula
-/// 
+///
 /// sharpe = (mean risk - risk free return) / standard_deviation of mean risk
 ///
-/// arguments: 
+/// arguments:
 ///     `series: &[f64]` - returns over the span as vec of f64 // in decimal (not %)
 ///     `rf: f64` - risk free return // in decimal (not %)
 pub fn calculate_sharpe(series: &[f64], rf: f64) -> f64 {
     let m = mean(series);
-    (m - rf) / standard_deviation(variance(series, Some(m)))
+    let vol = standard_deviation(variance(series, Some(m)));
+
+    // check for zero volatility
+    //
+    // if there is no volatility, the ratio is thechnically undefined.
+    // we return 0.0 to prevent panic/inf results
+    if vol < f64::EPSILON {
+        return 0.0;
+    }
+
+    (m - rf) / vol
 }
 
 // modified version of variance.
@@ -116,6 +146,12 @@ pub fn calculate_sharpe(series: &[f64], rf: f64) -> f64 {
 // Downside Variance: only considers returns lower than the target (rf)
 pub fn downside_deviation(series: &[f64], rf: f64) -> f64 {
     let count = series.len() as f64;
+
+    // guard aganist division by zero
+    if count == 0.0 {
+        return 0.0;
+    }
+
     let sum_sq_diffs: f64 = series
         .iter()
         .map(|&x| {
@@ -154,7 +190,7 @@ pub fn calculate_sortino(series: &[f64], rf: f64) -> f64 {
 /// ## The Treynor Formula
 ///
 /// TreynorRatio = Rm − Rf / Beta
-/// 
+///
 /// Where:
 ///     Rm: Portfolio Return.
 ///     Rf: Risk-free Rate.
@@ -174,9 +210,9 @@ pub fn calculate_treynor(series: &[f64], market: &[f64], rf: f64) -> f64 {
 // The Information Ratio is the "Report Card" for active fund managers.
 // It doesn't just ask if you made money; it asks:
 //      "Did you beat the benchmark, and was it skill or just luck?"
-// 
+//
 // The Formula
-// 
+//
 // InformationRatio = Tracking ErrorPortfolio Return − Benchmark Return​
 //
 // Where:
