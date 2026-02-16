@@ -1,0 +1,46 @@
+name: Publish Crates
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish to Crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetches all history so the action can compare commit dates accurately
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish Crates
+        id: publish-step
+        uses: katyo/publish-crates@v2
+        with:
+          # Use the secret you added to your GitHub Repo settings
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          
+          # Only perform a real publish on a push to main
+          dry-run: ${{ github.event_name == 'pull_request' }}
+          
+          # Prevents the workflow from failing if there are no new versions to publish
+          ignore-unpublished-changes: true
+          
+          # Bypasses local modification checks on PRs (avoids detached HEAD errors)
+          check-repo: ${{ github.event_name != 'pull_request' }}
+
+      - name: Report Results
+        if: steps.publish-step.outputs.published != '[]'
+        run: |
+          echo "The following crates were processed:"
+          echo '${{ steps.publish-step.outputs.published }}' | jq -r '.[] | "- \(.name) v\(.version)"'
