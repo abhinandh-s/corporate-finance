@@ -45,7 +45,7 @@ impl Beta {
         // self.0 == 1.00 - this is risky due to precision errors
         // check if the difference is within a tiny margin (epsilon)
         (self.0 - 1.0).abs() < 1e-6 // or f64::EPSILON? isn't EPSILON way too small for
-                                    // financial calculations
+        // financial calculations
     }
 
     /// The fund is "defensive" and moves less than the market
@@ -74,6 +74,32 @@ impl From<Beta> for f64 {
     }
 }
 
+/// # Sharpe ratio
+///
+/// ## Formula:
+///
+/// sharpe = (mean risk - risk free return) / std deviation of mean risk
+///
+/// ## Usage
+///
+/// sharpe(series, rf);
+///
+/// where:
+///     `series: &[f64]` - portfolio return as slice Item = % return (not absolute return)
+///     `rf: f64` - risk free return
+///
+/// ## Grading Thresholds
+///
+///     Less than 1: Bad
+///     1 – 1.99: Adequate/good
+///     2 – 2.99: Very good
+///     Greater than 3: Excellent
+///
+/// ref: [Sharpe Ratio](https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/sharpe-ratio-definition-formula/)
+///
+/// # See also
+///
+/// [`sharpe!`] macro (more feature rich)
 pub fn sharpe(series: &[f64], rf: f64) -> f64 {
     internal_sharpe(Some(series), rf, None, None)
 }
@@ -98,8 +124,31 @@ fn internal_sharpe(series: Option<&[f64]>, rf: f64, rp: Option<f64>, sd: Option<
     (portfolio_ret - rf) / std_div
 }
 
+/// # Sharpe ratio
+///
+/// ## Formula:
+///
+/// sharpe = (mean risk - risk free return) / std deviation of mean risk
+///
+/// ## Usage
+///
 /// 1. sharpe!(series, rf);
 /// 2. sharpe!(rp, rf, sd);
+///
+/// where:
+///     `series: &[f64]` - portfolio return as slice Item = % return (not absolute return)
+///     `rf: f64` - risk free return
+///     `rp: f64` - portfolio return
+///     `sd: f64` - standard deviation
+///
+/// ## Grading Thresholds
+///
+///     Less than 1: Bad
+///     1 – 1.99: Adequate/good
+///     2 – 2.99: Very good
+///     Greater than 3: Excellent
+///
+/// ref: [Sharpe Ratio](https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/sharpe-ratio-definition-formula/)
 #[macro_export]
 macro_rules! sharpe {
     ($series: expr, $rf: expr) => {
@@ -115,7 +164,7 @@ mod test {
     use crate::ratios::risk_metrics::sharpe;
 
     use super::Beta;
-    
+
     // in the month of Jan 2026
     const NIFTY_50: [f64; 19] = [
         0.006960765170238605,
@@ -151,7 +200,6 @@ mod test {
         0.000149316018136497,
         -0.016579515057863883,
         0.012150627231730476,
-
         -0.02070828665292772,
         -0.00475024862225316,
         0.00030797372763436743,
@@ -163,7 +211,6 @@ mod test {
     ];
     #[test]
     fn beta_t() {
-
         let beta: f64 = Beta::new(&ITC, &NIFTY_50).into();
         assert_eq!(beta, -0.13098715705340794);
     }
