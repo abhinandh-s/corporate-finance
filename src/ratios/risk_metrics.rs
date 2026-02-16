@@ -90,10 +90,12 @@ impl From<Beta> for f64 {
 ///
 /// ## Grading Thresholds
 ///
+/// ```text
 ///     Less than 1: Bad
 ///     1 – 1.99: Adequate/good
 ///     2 – 2.99: Very good
 ///     Greater than 3: Excellent
+/// ```
 ///
 /// ref: [Sharpe Ratio](https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/sharpe-ratio-definition-formula/)
 ///
@@ -142,12 +144,12 @@ fn internal_sharpe(series: Option<&[f64]>, rf: f64, rp: Option<f64>, sd: Option<
 ///     `sd: f64` - standard deviation
 ///
 /// ## Grading Thresholds
-///
+/// ```text
 ///     Less than 1: Bad
 ///     1 – 1.99: Adequate/good
 ///     2 – 2.99: Very good
 ///     Greater than 3: Excellent
-///
+/// ```
 /// ref: [Sharpe Ratio](https://corporatefinanceinstitute.com/resources/career-map/sell-side/risk-management/sharpe-ratio-definition-formula/)
 #[macro_export]
 macro_rules! sharpe {
@@ -159,11 +161,30 @@ macro_rules! sharpe {
     };
 }
 
+// number of observation / number of year are same as the x.len()
+pub fn downside_deviation(x: &[f64], mar: f64) -> f64 {
+    let no_of_year = x.len() as f64;
+    let result = x
+        .iter()
+        .map(|xi| {
+            let diff = xi - mar;
+            if diff.is_sign_negative() {
+                diff * diff
+            } else {
+                0.0
+            }
+        })
+        .sum::<f64>();
+    let re = result / no_of_year;
+    re.sqrt()
+}
+
 #[cfg(test)]
 mod test {
+    use crate::F64Extras;
     use crate::ratios::risk_metrics::sharpe;
 
-    use super::Beta;
+    use super::{Beta, downside_deviation};
 
     // in the month of Jan 2026
     const NIFTY_50: [f64; 19] = [
@@ -228,5 +249,18 @@ mod test {
         assert_eq!(s2, 1.25);
         assert_eq!(s1, -3.024907069875915);
         assert_eq!(s3, -3.024907069875915);
+    }
+
+    // ref: https://www.investopedia.com/terms/d/downside-deviation.asp
+    #[test]
+    fn downside_t() {
+        // downside deviation input data
+        let _years = [2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019];
+
+        let returns = [-0.02, 0.16, 0.31, 0.17, -0.11, 0.21, 0.26, -0.03, 0.38];
+        let mar = 0.01;
+
+        let dd = downside_deviation(&returns, mar);
+        assert_eq!(dd.round_4(), 0.0433)
     }
 }
